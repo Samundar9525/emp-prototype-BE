@@ -1,11 +1,16 @@
 
+from django.shortcuts import get_object_or_404
+from django.views import View
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import DepartmentEmployeeCounts, DeptEmp, Employee, EmployeeDepartmentView, SalaryHike
 from .serializers import DepartmentEmployeeCountsSerializer, EmployeeDepartmentViewSerializer, EmployeeExperienceSerializer, EmployeeSerializer, SalaryHikeSerializer
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.db import connection
 from .models import DeptEmp, Employee, Salary, Title
+from rest_framework import status
+from rest_framework.views import APIView
+from django.views.decorators.csrf import csrf_exempt
 
 
 def index(request):
@@ -172,3 +177,56 @@ def get_designation_timeline(request, emp_no):
         return Response(timeline_data)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
+    
+
+class CreateEmployee(APIView):
+    def post(self, request):
+        emp_no = request.data.get('emp_no')
+        birth_date = request.data.get('birth_date')
+        first_name = request.data.get('first_name')
+        last_name = request.data.get('last_name')
+        gender = request.data.get('gender')
+        hire_date = request.data.get('hire_date')
+
+        employee = Employee(
+            emp_no= emp_no,
+            birth_date=birth_date,
+            first_name=first_name,
+            last_name=last_name,
+            gender=gender,
+            hire_date=hire_date
+        )
+        employee.save()
+
+        return Response({'message': 'Employee Record Created Sucessfully'}, status=status.HTTP_201_CREATED)
+        
+
+@api_view(['GET'])
+def get_next_emp_no(request):
+    with connection.cursor() as cursor:
+        cursor.execute("select emp_no from employee order by emp_no Desc limit 1")
+        row = cursor.fetchone()
+    return Response(row)
+
+class UpdateEmployeeView(APIView):
+    def put(self, request, emp_no):
+        data = request.data
+        employee = get_object_or_404(Employee, emp_no=emp_no)
+        
+        employee.birth_date = data.get('birth_date', employee.birth_date)
+        employee.first_name = data.get('first_name', employee.first_name)
+        employee.last_name = data.get('last_name', employee.last_name)
+        employee.gender = data.get('gender', employee.gender)
+        employee.hire_date = data.get('hire_date', employee.hire_date)
+        
+        employee.save()
+
+        return JsonResponse({'message': 'Employee data updated Sucessfully' }, status=status.HTTP_200_OK)
+    
+
+
+class DeleteEmployeeView(APIView):
+    def delete(self, request, emp_no):
+        employee = get_object_or_404(Employee, emp_no=emp_no)
+        employee.delete()
+        return Response({'message':'Employee deleted Sucessfully'},status=status.HTTP_200_OK)
