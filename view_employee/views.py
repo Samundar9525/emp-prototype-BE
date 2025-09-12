@@ -82,34 +82,50 @@ def employees_by_department(request, dept_no):
 def get_salary_hikes(request, empid):
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT
+            WITH yearly_salaries AS (
+                SELECT DISTINCT ON (EXTRACT(YEAR FROM from_date))
+                    emp_no,
+                    from_date,
+                    amount as salary,
+                    EXTRACT(YEAR FROM from_date) as year
+                FROM public.salary
+                WHERE emp_no = %s
+                ORDER BY EXTRACT(YEAR FROM from_date), from_date DESC
+            ),
+            salary_changes AS (
+                SELECT
+                    emp_no,
+                    from_date,
+                    salary as current_salary,
+                    LAG(salary) OVER (ORDER BY year) as previous_salary,
+                    year
+                FROM yearly_salaries
+            )
+            SELECT 
                 emp_no,
-                from_date,
-                amount AS current_salary,
-                COALESCE(LAG(amount) OVER (PARTITION BY emp_no ORDER BY from_date), 0) AS previous_salary,
-                COALESCE(
-                    ROUND(((amount - LAG(amount) OVER (PARTITION BY emp_no ORDER BY from_date))::decimal / LAG(amount) OVER (PARTITION BY emp_no ORDER BY from_date)) * 100, 1),
-                    0
-                ) AS hike_percentage
-            FROM
-                public.salary
-            WHERE
-                emp_no = %s
-            ORDER BY
-                emp_no,
-                from_date
+                year,
+                current_salary,
+                COALESCE(previous_salary, current_salary) as previous_salary,
+                CASE 
+                    WHEN previous_salary IS NULL OR previous_salary = 0 THEN 0
+                    ELSE ROUND(((current_salary - previous_salary)::decimal / previous_salary * 100), 1)
+                END as hike_percentage
+            FROM salary_changes
+            ORDER BY year;
         """, [empid])
         rows = cursor.fetchall()
 
-    salary_hikes = [
-        SalaryHike(
-            emp_no=row[0],
-            from_date=row[1],
-            current_salary=row[2],
-            previous_salary=row[3],
-            hike_percentage=row[4]
-        ) for row in rows
-    ]
+    salary_hikes = []
+    for row in rows:
+        if row[2] is not None:  # Only include rows with valid salary data
+            hike = SalaryHike(
+                emp_no_id=row[0],
+                from_date=f"{int(row[1])}-01-01",  # Convert year to date
+                current_salary=row[2],
+                previous_salary=row[3],
+                hike_percentage=row[4] if row[4] is not None else 0
+            )
+            salary_hikes.append(hike)
 
     serializer = SalaryHikeSerializer(salary_hikes, many=True)
     return Response(serializer.data)

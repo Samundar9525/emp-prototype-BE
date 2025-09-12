@@ -1,6 +1,6 @@
 from datetime import date
 from rest_framework import serializers
-from .models import Department, DepartmentEmployeeCounts, Employee, Salary, SalaryHike, Title
+from .models import Department, DepartmentEmployeeCounts, Employee, Salary, Title, SalaryHike
 
 class EmployeeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,10 +33,7 @@ class DepartmentEmployeeCountsSerializer(serializers.ModelSerializer):
         fields = ['dept_no', 'dept_name', 'total_employees']
 
 
-class SalaryHikeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SalaryHike
-        fields = ['emp_no', 'from_date', 'current_salary', 'previous_salary', 'hike_percentage']
+
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -53,6 +50,10 @@ class TitleSerializer(serializers.ModelSerializer):
         model = Title
         fields = ['title']  # Only including the title
 
+class SalaryHikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalaryHike
+        fields = ['emp_no', 'from_date', 'current_salary', 'previous_salary', 'hike_percentage']
 
 class EmployeeDetailSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer()

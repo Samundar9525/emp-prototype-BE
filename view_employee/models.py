@@ -49,20 +49,12 @@ class DepartmentEmployeeCounts(models.Model):
         managed = False
         db_table = 'department_employee_counts'
 
-class SalaryHike(models.Model):
-    emp_no = models.IntegerField()
-    from_date = models.DateField()
-    current_salary = models.IntegerField()
-    previous_salary = models.IntegerField()
-    hike_percentage = models.DecimalField(max_digits=5, decimal_places=1)
 
-    class Meta:
-        managed = False
 
 class Salary(models.Model):
-    emp_no = models.ForeignKey(Employee, on_delete=models.CASCADE, db_column='emp_no',primary_key=True)
+    emp_no = models.ForeignKey(Employee, on_delete=models.CASCADE, db_column='emp_no', related_name='salaries')
     amount = models.IntegerField()
-    from_date = models.DateField()
+    from_date = models.DateField(primary_key=True)
     to_date = models.DateField()
 
     class Meta:
@@ -72,11 +64,25 @@ class Salary(models.Model):
     def __str__(self):
         return f'{self.emp_no} - {self.amount}'
 
+    def __str__(self):
+        return f'{self.emp_no} - {self.amount}'
+
 class Title(models.Model):
-    emp_no = models.ForeignKey(Employee, on_delete=models.CASCADE,db_column='emp_no',primary_key=True)
+    emp_no = models.OneToOneField(Employee, on_delete=models.CASCADE, db_column='emp_no', primary_key=True)
     title = models.CharField(max_length=100)
     from_date = models.DateField()
     to_date = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = 'title'
+
+class SalaryHike(models.Model):
+    emp_no = models.ForeignKey(Employee, on_delete=models.CASCADE, db_column='emp_no')
+    from_date = models.DateField()
+    current_salary = models.IntegerField()
+    previous_salary = models.IntegerField()
+    hike_percentage = models.DecimalField(max_digits=5, decimal_places=1)
+
+    class Meta:
+        managed = True
+        db_table = 'salary_hike'
