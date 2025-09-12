@@ -1,4 +1,3 @@
-
 from django.shortcuts import get_object_or_404
 from django.views import View
 from rest_framework.response import Response
@@ -12,7 +11,6 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.views.decorators.csrf import csrf_exempt
 
-
 def index(request):
     return HttpResponse("Hello, sam this is home")
 
@@ -21,7 +19,6 @@ def get_emp_data(request):
     employees = Employee.objects.all()[:10]
     serializer = EmployeeSerializer(employees, many=True)
     return Response(serializer.data)
-
 
 @api_view(['GET'])
 def get_emp_exp(request):
@@ -76,60 +73,60 @@ def employees_by_department(request, dept_no):
         return Response(serializer.data)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
-    
 
 @api_view(['GET'])
 def get_salary_hikes(request, empid):
-    with connection.cursor() as cursor:
-        cursor.execute("""
-            WITH yearly_salaries AS (
-                SELECT DISTINCT ON (EXTRACT(YEAR FROM from_date))
-                    emp_no,
-                    from_date,
-                    amount as salary,
-                    EXTRACT(YEAR FROM from_date) as year
-                FROM public.salary
-                WHERE emp_no = %s
-                ORDER BY EXTRACT(YEAR FROM from_date), from_date DESC
-            ),
-            salary_changes AS (
+    try:
+        # First check if employee exists
+        if not Employee.objects.filter(emp_no=empid).exists():
+            return Response({'error': 'Employee not found'}, status=404)
+
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                WITH salary_data AS (
+                    SELECT
+                        emp_no,
+                        from_date,
+                        amount as current_salary,
+                        LAG(amount) OVER (ORDER BY from_date) as previous_salary,
+                        EXTRACT(YEAR FROM from_date) as year
+                    FROM salary
+                    WHERE emp_no = %s
+                    ORDER BY from_date
+                )
                 SELECT
                     emp_no,
                     from_date,
-                    salary as current_salary,
-                    LAG(salary) OVER (ORDER BY year) as previous_salary,
-                    year
-                FROM yearly_salaries
-            )
-            SELECT 
-                emp_no,
-                year,
-                current_salary,
-                COALESCE(previous_salary, current_salary) as previous_salary,
-                CASE 
-                    WHEN previous_salary IS NULL OR previous_salary = 0 THEN 0
-                    ELSE ROUND(((current_salary - previous_salary)::decimal / previous_salary * 100), 1)
-                END as hike_percentage
-            FROM salary_changes
-            ORDER BY year;
-        """, [empid])
-        rows = cursor.fetchall()
+                    current_salary,
+                    COALESCE(previous_salary, current_salary) as previous_salary,
+                    CASE
+                        WHEN previous_salary IS NOT NULL AND previous_salary != 0
+                        THEN ROUND(((current_salary - previous_salary)::decimal / previous_salary * 100), 1)
+                        ELSE 0
+                    END as hike_percentage
+                FROM salary_data;
+            """, [empid])
+            rows = cursor.fetchall()
 
-    salary_hikes = []
-    for row in rows:
-        if row[2] is not None:  # Only include rows with valid salary data
-            hike = SalaryHike(
-                emp_no_id=row[0],
-                from_date=f"{int(row[1])}-01-01",  # Convert year to date
-                current_salary=row[2],
-                previous_salary=row[3],
-                hike_percentage=row[4] if row[4] is not None else 0
-            )
-            salary_hikes.append(hike)
+        if not rows:
+            return Response({'error': 'No salary records found'}, status=404)
 
-    serializer = SalaryHikeSerializer(salary_hikes, many=True)
-    return Response(serializer.data)
+        salary_hikes = []
+        for row in rows:
+            if row[2] is not None:  # Only include rows with valid salary data
+                hike = {
+                    'from_date': row[1].strftime('%Y-%m-%d'),
+                    'current_salary': int(row[2]),
+                    'hike_percentage': float(row[4] if row[4] is not None else 0)
+                }
+                salary_hikes.append(hike)
+        
+        print(f"Salary data: {salary_hikes}")  # Debug print
+        return Response(salary_hikes)
 
+    except Exception as e:
+        print(f"Error in get_salary_hikes: {str(e)}")
+        return Response({'error': str(e)}, status=400)
 
 @api_view(['GET'])
 def get_employee_detail(request, emp_no):
@@ -154,7 +151,6 @@ def get_employee_detail(request, emp_no):
     
     except Exception as e:
         return Response({'error': str(e)}, status=400)
-    
 
 @api_view(['GET'])
 def get_employee_department(request, emp_no):
@@ -170,7 +166,6 @@ def get_employee_department(request, emp_no):
         return Response({'error': 'Employee or department not found'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
-
 
 def get_designation_timeline_data(emp_no):
     with connection.cursor() as cursor:
@@ -193,7 +188,6 @@ def get_designation_timeline(request, emp_no):
         return Response(timeline_data)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
-    
 
 class CreateEmployee(APIView):
     def post(self, request):
@@ -205,7 +199,7 @@ class CreateEmployee(APIView):
         hire_date = request.data.get('hire_date')
 
         employee = Employee(
-            emp_no= emp_no,
+            emp_no=emp_no,
             birth_date=birth_date,
             first_name=first_name,
             last_name=last_name,
@@ -214,8 +208,7 @@ class CreateEmployee(APIView):
         )
         employee.save()
 
-        return Response({'message': 'Employee Record Created Sucessfully'}, status=status.HTTP_201_CREATED)
-        
+        return Response({'message': 'Employee Record Created Successfully'}, status=status.HTTP_201_CREATED)
 
 @api_view(['GET'])
 def get_next_emp_no(request):
@@ -237,12 +230,10 @@ class UpdateEmployeeView(APIView):
         
         employee.save()
 
-        return JsonResponse({'message': 'Employee data updated Sucessfully' }, status=status.HTTP_200_OK)
-    
-
+        return JsonResponse({'message': 'Employee data updated Successfully'}, status=status.HTTP_200_OK)
 
 class DeleteEmployeeView(APIView):
     def delete(self, request, emp_no):
         employee = get_object_or_404(Employee, emp_no=emp_no)
         employee.delete()
-        return Response({'message':'Employee deleted Sucessfully'},status=status.HTTP_200_OK)
+        return Response({'message': 'Employee deleted Successfully'}, status=status.HTTP_200_OK)
