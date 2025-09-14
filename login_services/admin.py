@@ -1,23 +1,23 @@
 from django.contrib import admin
-from .models import EmployeeLogin
+from django.contrib.auth.admin import UserAdmin
+from .models import CustomUser
 
-@admin.register(EmployeeLogin)
-class EmployeeLoginAdmin(admin.ModelAdmin):
-    list_display = ('login_id', 'username', 'emp_no', 'is_staff', 'is_superuser', 'last_login', 'created_at')
-    search_fields = ('username', 'emp_no')
-    ordering = ('login_id',)
+@admin.register(CustomUser)
+class CustomUserAdmin(UserAdmin):
+    list_display = ('email', 'name', 'emp_no', 'is_staff', 'is_active', 'date_joined')
+    search_fields = ('email', 'name', 'emp_no')
+    ordering = ('email',)
     
-    # Customize the fieldsets for add/edit forms
     fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ('Personal info', {'fields': ('emp_no',)}),
+        (None, {'fields': ('email', 'password')}),
+        ('Personal info', {'fields': ('name',)}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
-        ('Important dates', {'fields': ('last_login', 'created_at')}),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
-
-    readonly_fields = ('created_at',)
     
-    def get_readonly_fields(self, request, obj=None):
-        if obj:  # Editing an existing object
-            return self.readonly_fields + ('password',)
-        return self.readonly_fields
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('email', 'name', 'password1', 'password2'),
+        }),
+    )

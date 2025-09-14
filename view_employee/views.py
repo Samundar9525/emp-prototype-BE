@@ -1,7 +1,8 @@
 from django.shortcuts import get_object_or_404
 from django.views import View
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import DepartmentEmployeeCounts, DeptEmp, Employee, EmployeeDepartmentView, SalaryHike
 from .serializers import DepartmentEmployeeCountsSerializer, EmployeeDepartmentViewSerializer, EmployeeExperienceSerializer, EmployeeSerializer, SalaryHikeSerializer
 from django.http import HttpResponse, JsonResponse
@@ -55,6 +56,7 @@ def get_group_by_department(request):
         return Response({'error': str(e)})
 
 @api_view(['GET'])
+@permission_classes([AllowAny])  # Allow public access for dashboard data
 def department_employee_counts_api(request):
     try:
         queryset = DepartmentEmployeeCounts.objects.all()
@@ -62,9 +64,10 @@ def department_employee_counts_api(request):
         return Response(serializer.data)
 
     except Exception as e:
-        return Response({'error': str(e)})
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def employees_by_department(request, dept_no):
     try:
         emp_ids = DeptEmp.objects.filter(dept_no=dept_no).values_list('emp_no', flat=True)
@@ -72,7 +75,7 @@ def employees_by_department(request, dept_no):
         serializer = EmployeeSerializer(employees, many=True)
         return Response(serializer.data)
     except Exception as e:
-        return Response({'error': str(e)}, status=400)
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 def get_salary_hikes(request, empid):
@@ -190,6 +193,8 @@ def get_designation_timeline(request, emp_no):
         return Response({'error': str(e)}, status=400)
 
 class CreateEmployee(APIView):
+    permission_classes = [AllowAny]  # In production, change to IsAuthenticated
+
     def post(self, request):
         emp_no = request.data.get('emp_no')
         birth_date = request.data.get('birth_date')

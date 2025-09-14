@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Welcome</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background-color: #3f51b5;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .welcome-message {
+            font-size: 18px;
+        }
+        .session-info {
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+        .logout-btn {
+            background-color: #f44336;
+            color: white;
+            padding: 8px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .logout-btn:hover {
+            background-color: #d32f2f;
+        }
+        .message {
+            margin: 10px 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .dashboard-container {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .dashboard-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+    <script>
+        // Function to update session time
+        function updateSessionTime() {
+            const loginTime = new Date("{{ request.session.login_time|date:'c' }}");
+            const currentTime = new Date();
+            const diff = Math.floor((currentTime - loginTime) / 1000); // difference in seconds
+            
+            const hours = Math.floor(diff / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
+            
+            const timeString = `Session Time: ${hours}h ${minutes}m ${seconds}s`;
+            document.getElementById('session-time').innerText = timeString;
+        }
+
+        // Update session time every second
+        window.onload = function() {
+            updateSessionTime();
+            setInterval(updateSessionTime, 1000);
+        }
+    </script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="welcome-message">Welcome, {{ request.user.name }}!</div>
+            <div class="session-info">
+                <span>Login time: {{ request.session.login_time|date:"F j, Y, g:i a" }}</span>
+                <br>
+                <span id="session-time"></span>
+            </div>
+        </div>
+        <a href="{% url 'logout' %}" class="logout-btn">Logout</a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="message {% if message.tags %}{{ message.tags }}{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="dashboard-container">
+        <iframe class="dashboard-frame" src="http://localhost:4200/department-dashboard" title="Angular Dashboard"></iframe>
+    </div>
+</body>
+</html>

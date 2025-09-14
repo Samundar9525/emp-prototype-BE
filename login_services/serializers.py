@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import EmployeeLogin
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from .models import EmployeeLogin, CustomUser
 
 class EmployeeLoginSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,3 +13,12 @@ class EmployeeLoginSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = EmployeeLogin.objects.create_user(**validated_data)
         return user
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Add custom claims
+        token['username'] = user.name
+        token['email'] = user.email
+        return token
